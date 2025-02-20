@@ -31,6 +31,7 @@ class MovieSerializer(serializers.ModelSerializer):
             raise serializers.ValidationError("Title must be at least 2 characters long")
         return value
 
+        
     def validate_duration(self, value):
         if len(value) <= 0:
             raise serializers.ValidationError("Duration must be a positive integer.")

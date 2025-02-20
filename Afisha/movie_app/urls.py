@@ -1,0 +1,15 @@
+from django.urls import path
+from .import views
+
+urlpatterns = [
+
+    path('directors/', views.director_list_view,),
+    path('directors/<int:id>/', views.director_detail_view,),
+
+    path('movies/', views.movie_list_view,),
+    path('movies/<int:id>/', views.movie_detail_view,),
+
+    path('reviews/', views.reviews_list_view,),
+    path('reviews/<int:id>/', views.reviews_detail_view,),
+
+]   
