@@ -1,34 +1,28 @@
-from rest_framework.decorators import api_view
+from rest_framework.generics import CreateAPIView
+from rest_framework.authtoken.views import ObtainAuthToken
 from rest_framework.response import Response
 from rest_framework import status
 from django.contrib.auth.models import User
 from .serializers import RegisterSerializer
-from django.contrib.auth import authenticate
 from rest_framework.authtoken.models import Token
 
-
-@api_view(['POST'])
-def authorization_api_view(request):
-    username = request.data.get['username']
-    password = request.data.get['password']
-
-    user = authenticate(username=username, password=password)
-
-    if user:
-        token = Token.objects.get(user=user)
+class AuthorizationAPIView(ObtainAuthToken):
+    def post(self, request, *args, **kwargs):
+        serializer = self.serializer_class(data=request.data, context={'request': request})
+        serializer.is_valid(raise_exception=True)
+        user = serializer.validated_data['user']
+        token, created = Token.objects.get_or_create(user=user)
         return Response({'token': token.key})
-    return Response(status=status.HTTP_401_UNAUTHORIZED,
-                    data={'error': 'Username credentiels are wrohg!'})
 
+class RegistrationAPIView(CreateAPIView):
+    queryset = User.objects.all()
+    serializer_class = RegisterSerializer
 
-@api_view(['POST'])
-def registraton_api_view(request):
-    serializer = RegisterSerializer(data=request.data)
-    serializer.is_valid(raise_exception=True)
-
-    username = serializer.validated_data.get('username')
-    password = serializer.validated_data.get('password')
-
-    user = User.objects.create_user(username=username, password= password)
-
-    return Response(status=status.HTTP_201_CREATED, data={'user_id': user.id})
+    def create(self, request, *args, **kwargs):
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        user = User.objects.create_user(
+            username=serializer.validated_data['username'],
+            password=serializer.validated_data['password']
+        )
+        return Response({'user_id': user.id}, status=status.HTTP_201_CREATED)
