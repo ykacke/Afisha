@@ -1,45 +1,76 @@
 from rest_framework import serializers
-from .models import Movie, Director, Review
+from movie_app.models import Director, Movie, Review
+from rest_framework.exceptions import ValidationError
+
 
 class DirectorSerializer(serializers.ModelSerializer):
-    movies_count = serializers.SerializerMethodField()
+    movie_count = serializers.SerializerMethodField()
 
     class Meta:
         model = Director
-        fields = "id name movies_count".split()
+        fields = 'id name movie_count'.split()
 
-    def get_movies_count(self, obj):
-        return obj.movies.count()
-
-    def validate_name(self, value):
-        if len(value) < 3:
-            raise serializers.ValidationError("Name must be at least 3 characters long")
-        return value
+    def get_movie_count(self, director):
+        return director.movies.count()
 
 
 class MovieSerializer(serializers.ModelSerializer):
-    average_rating = serializers.SerializerMethodField()
+    rating = serializers.SerializerMethodField()
 
     class Meta:
         model = Movie
-        fields = "id title description duration director average_rating".split()
+        fields = 'id title description duration director reviews rating'.split()
+        depth = 2
 
-    def get_average_rating(self, obj):
-        return obj.average_rating
-    def validate_title(self, value):
-        if len(value) < 2:
-            raise serializers.ValidationError("Title must be at least 2 characters long")
-        return value
-
-        
-    def validate_duration(self, value):
-        if len(value) <= 0:
-            raise serializers.ValidationError("Duration must be a positive integer.")
+    def get_rating(self, movie):
+        reviews = movie.reviews.all()
+        if reviews:
+            sum_reviews = sum([review.stars for review in reviews])
+            rating = sum_reviews / len(reviews)
+            return rating
+        else:
+            return None
 
 
 class ReviewSerializer(serializers.ModelSerializer):
-    movie = serializers.PrimaryKeyRelatedField(queryset=Movie.objects.all())
-
     class Meta:
         model = Review
-        fields = "id text stars movie ".split()
+        fields = 'id text movie stars'.split()
+
+
+class DirectorValidateSerializer(serializers.Serializer):
+    name = serializers.CharField(required=True, max_length=255, min_length=1)
+
+
+class MovieValidateSerializer(serializers.Serializer):
+    title = serializers.CharField(required=True, max_length=255, min_length=1)
+    description = serializers.CharField(required=True, max_length=255, min_length=1)
+    duration = serializers.IntegerField(required=True)
+    director_id = serializers.IntegerField(required=True, min_value=1)
+
+    # def validate(self, attrs):
+    #     try:
+    #         Movie.objects.get(id=attrs['director_id'])
+    #     except Movie.DoesNotExist:
+    #         raise ValidationError('Movie does not exist')
+    #     return attrs
+
+    def validate_director_id(self, director_id):
+        try:
+            Director.objects.get(id=director_id)
+        except:
+            raise ValidationError('Director does not exist')
+        return director_id
+
+
+class ReviewValidateSerializer(serializers.Serializer):
+    text = serializers.CharField(required=True, max_length=255, min_length=1)
+    stars = serializers.IntegerField(required=True, min_value=1)
+    movie_id = serializers.IntegerField(required=True, min_value=1)
+
+    def validate_movie_id(self, movie_id):
+        try:
+            Director.objects.get(id=movie_id)
+        except:
+            raise ValidationError('Director does not exist')
+        return movie_id
